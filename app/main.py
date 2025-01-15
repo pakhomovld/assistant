@@ -3,6 +3,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.routes import register_routes
 from app.config import settings
 
+USER_DB = {"admin": "admin", "user": "password"}
+
 def create_app():
     app = FastAPI()
     app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)

@@ -1,5 +1,14 @@
+langchain_community
+python-multipart
+psycopg2-binary
+itsdangerous>=2.0.0
+python-dotenv
+yandexcloud
+sqlalchemy
 fastapi
 uvicorn
-sqlalchemy
-python-dotenv
-langchain_community
+alembic
+passlib
+grpcio
+bcrypt
+jinja2
