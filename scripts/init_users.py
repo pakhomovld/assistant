@@ -1,29 +1,46 @@
+"""
+Database initialization script.
+
+This script initializes the database, creates default tables,
+and adds an admin user if one does not exist.
+"""
+
 import sys
 import os
-
-# Добавляем путь к модулю, если он не установлен
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
-
+import time
 from sqlalchemy import text
-from app.models import User, Base, engine
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
+from app.models import User, Base, engine
 from bcrypt import hashpw, gensalt
-import time
+
+# Add the parent directory to the system path for module resolution
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 
 def hash_password(password: str) -> str:
-    """Хэширует пароль перед сохранением."""
+    """
+    Hashes a password for secure storage.
+
+    Args:
+        password (str): The plaintext password to hash.
+
+    Returns:
+        str: The hashed password.
+    """
     return hashpw(password.encode("utf-8"), gensalt()).decode("utf-8")
 
 
 def wait_for_db():
-    """Ждет, пока база данных станет доступной."""
+    """
+    Waits until the database is ready to accept connections.
+
+    Continuously attempts to connect to the database until successful.
+    """
     while True:
         try:
-            # Проверяем доступность базы данных с помощью соединения
             with engine.connect() as conn:
-                conn.execute(text("SELECT 1"))  # Используем text() для запроса
+                conn.execute(text("SELECT 1"))
             print("Database is ready!")
             break
         except OperationalError as e:
@@ -32,14 +49,16 @@ def wait_for_db():
 
 
 def initialize_users():
-    """Инициализирует пользователей в базе данных."""
+    """
+    Initializes default users in the database.
+
+    Creates an admin user with a default password if one does not already exist.
+    """
     session = Session(bind=engine)
     try:
-        # Проверяем, существует ли пользователь с именем admin
         admin_user = session.query(User).filter_by(username="admin").first()
         if not admin_user:
-            # Создаем нового пользователя с хэшированным паролем
-            password_hash = hash_password("securepassword")  # Замените "securepassword" на ваш пароль
+            password_hash = hash_password("securepassword")  # Replace with a secure password
             new_user = User(username="admin", password_hash=password_hash)
             session.add(new_user)
             session.commit()
