@@ -2,10 +2,16 @@ from dotenv import load_dotenv
 import os
 from app.ya_token_refresh import get_iam_token
 
+"""
+Configuration module for setting environment variables and application settings.
+"""
+
 # Load environment variables from the .env file
 load_dotenv()
 
 class Settings:
+    """Application settings loaded from environment variables."""
+
     # Path to the JSON key for the service account
     SA_KEY_PATH = os.getenv("YANDEX_SA_KEY_PATH", "./secrets/sa_key.json")
 
@@ -29,9 +35,8 @@ class Settings:
     DB_USER = os.getenv("DB_USER", "assistant_user")
     DB_PASSWORD = os.getenv("DB_PASSWORD", "yourpassword")
 
-    # Generate the database URL if DATABASE_URL is not provided
-    @property
-    def database_url(self):
+    def get_database_url(self):
+        """Generate the database URL if DATABASE_URL is not provided."""
         if self.DATABASE_URL:
             return self.DATABASE_URL
         return f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
