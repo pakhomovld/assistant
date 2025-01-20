@@ -12,3 +12,5 @@ passlib
 grpcio
 bcrypt
 jinja2
+requests
+PyJWT

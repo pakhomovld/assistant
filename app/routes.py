@@ -2,12 +2,12 @@ from fastapi import Request, Form, File, UploadFile
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from app.models import SessionLocal, QueryHistory, User
-from app.services.token_manager import ensure_valid_iam_token
 from app.services.document_handler import retrieve_relevant_parts
 from app.services.auth import is_authenticated
 from app.config import settings
 from langchain_community.llms import YandexGPT
 from app.utils import verify_password
+from app.ya_token_refresh import get_iam_token
 
 templates = Jinja2Templates(directory="app/templates")
 
@@ -65,27 +65,32 @@ def register_routes(app):
         if not is_authenticated(request):
             return RedirectResponse(url="/login", status_code=303)
 
-        current_token = settings.IAM_TOKEN  # Текущий токен из конфигурации
-        valid_token = ensure_valid_iam_token(current_token)
-        settings.IAM_TOKEN = valid_token
-        relevant_content = retrieve_relevant_parts(current_document_content, question)
-        prompt = (
-            f"Вот релевантный текст из документа: {relevant_content}\n"
-            f"Вопрос пользователя: {question}\n"
-            f"Ответь на вопрос с учётом текста."
-        )
+        current_token = settings.IAM_TOKEN  # Current token from config
+
+        # Если документ загружен, добавляем его содержимое в prompt
+        if current_document_content:
+            relevant_content = retrieve_relevant_parts(current_document_content, question)
+            prompt = (
+                f"Here's the relevant text from the document: {relevant_content}\n"
+                f"User's question: {question}\n"
+            )
+        else:
+            # Если документа нет, формируем prompt только с вопросом
+            prompt = f"User's question: {question}\n"
 
         try:
             response = yandex_gpt.invoke(prompt)
         except Exception as e:
-            response = f"Ошибка при запросе: {e}"
+            response = f"Error during request: {e}"
 
+        # Сохраняем запрос и ответ в базе данных
         db = SessionLocal()
         new_entry = QueryHistory(username=request.session["user"], question=question, response=response)
         db.add(new_entry)
         db.commit()
         db.close()
 
+        # Возвращаем пользователя на главную страницу
         return RedirectResponse(url="/", status_code=303)
 
     @app.get("/clear-history", response_class=HTMLResponse)
@@ -93,7 +98,7 @@ def register_routes(app):
         if not is_authenticated(request):
             return RedirectResponse(url="/login", status_code=303)
 
-        # Очистка истории для текущего пользователя в базе данных
+        # Clear history for the current user in the database
         db = SessionLocal()
         db.query(QueryHistory).filter(QueryHistory.username == request.session["user"]).delete()
         db.commit()
@@ -114,10 +119,23 @@ def register_routes(app):
         if not is_authenticated(request):
             return RedirectResponse(url="/login", status_code=303)
 
-        # Чтение содержимого загруженного файла
+	# Reading the contents of the downloaded file
         file_content = await file.read()
         current_document_content = file_content.decode("utf-8")
-        current_document_name = file.filename  # Сохранение имени файла
+        current_document_name = file.filename  # Saving filename
+
+        return RedirectResponse(url="/", status_code=303)
+
+    @app.post("/delete")
+    async def delete_document(request: Request):
+        global current_document_content, current_document_name
+
+        if not is_authenticated(request):
+            return RedirectResponse(url="/login", status_code=303)
+
+        # Очищаем глобальные переменные
+        current_document_content = None
+        current_document_name = None
 
         return RedirectResponse(url="/", status_code=303)
 
